@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Study Planner</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Arial, sans-serif; }
+  body {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    min-height:100vh;
+    padding:30px 15px;
+    color:#333;
+  }
+  .container {
+    max-width: 850px;
+    margin:auto;
+    background:#fff;
+    border-radius:16px;
+    padding:30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    min-height: 500px;
+  }
+  h1 { text-align:center; color:#4b3f72; margin-bottom:5px; }
+  p.subtitle { text-align:center; color:#777; margin-bottom:25px; font-size:14px; }
+  .screen { display:none; }
+  .screen.active { display:block; }
+
+  .auth-box { max-width:400px; margin:20px auto; }
+  .tab-switch { display:flex; margin-bottom:20px; border-radius:10px; overflow:hidden; border:1px solid #ddd; }
+  .tab-switch button {
+    flex:1; padding:12px; border:none; background:#f7f6fb; cursor:pointer; font-weight:bold; color:#777;
+  }
+  .tab-switch button.active { background:#667eea; color:#fff; }
+
+  input, select {
+    width:100%; padding:12px; margin-bottom:12px; border:1px solid #ccc; border-radius:8px; font-size:14px;
+  }
+  button.primary-btn {
+    width:100%; padding:13px; background:#4b3f72; color:#fff; border:none; border-radius:8px;
+    font-size:15px; font-weight:bold; cursor:pointer; transition:0.2s;
+  }
+  button.primary-btn:hover { background:#3a3159; }
+  .small-btn {
+    background:#667eea; color:#fff; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px;
+  }
+  .small-btn:hover { background:#5563d1; }
+  .link-text { text-align:center; margin-top:10px; font-size:13px; color:#667eea; cursor:pointer; }
+  .error-msg { color:#e74c3c; font-size:13px; margin:-6px 0 10px; display:none; }
+  .otp-info {
+    background:#eef7ee; border:1px solid #b7e0b7; padding:12px; border-radius:8px; margin-bottom:15px; font-size:14px; color:#276e27;
+  }
+
+  /* Dashboard */
+  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+  .user-badge { font-size:14px; color:#555; }
+  .logout-btn { background:#e74c3c; color:#fff; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .logout-btn:hover { background:#c0392b; }
+
+  .form-section { background:#f7f6fb; padding:20px; border-radius:12px; margin-bottom:20px; }
+  .subject-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
+  .subject-row input, .subject-row select { flex:1; min-width:110px; margin-bottom:0; }
+  .remove-row-btn { background:#e74c3c; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:12px; }
+  .add-row-btn { background:#27ae60; color:#fff; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-size:13px; margin-top:5px; }
+  .add-row-btn:hover { background:#219150; }
+
+  .form-row { display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; }
+  .form-row input { flex:1; min-width:150px; }
+
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th, td { padding:10px; text-align:left; border-bottom:1px solid #eee; font-size:14px; }
+  th { background:#eee9fb; color:#4b3f72; }
+  .priority-high { color:#e74c3c; font-weight:bold; }
+  .priority-medium { color:#e67e22; font-weight:bold; }
+  .priority-low { color:#27ae60; font-weight:bold; }
+
+  .day-block { background:#f7f6fb; padding:15px; border-radius:10px; margin-bottom:12px; }
+  .day-block h3 { color:#4b3f72; margin-bottom:8px; font-size:15px; }
+  .task { display:flex; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px dashed #ddd; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ===== AUTH SCREEN ===== -->
+  <div id="authScreen" class="screen active">
+    <h1>📚 AI Study Planner</h1>
+    <p class="subtitle">Login or create an account to get your personalized study plan</p>
+
+    <div class="auth-box">
+      <div class="tab-switch">
+        <button id="loginTabBtn" class="active" onclick="switchTab('login')">Login</button>
+        <button id="signupTabBtn" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Registered Email">
+        <input type="tel" id="loginPhone" placeholder="Registered Phone Number">
+        <div class="error-msg" id="loginError"></div>
+        <button class="primary-btn" onclick="handleLogin()">Send OTP & Login</button>
+      </div>
+
+      <!-- SIGNUP FORM -->
+      <div id="signupForm" style="display:none;">
+        <input type="text" id="signupName" placeholder="Full Name">
+        <input type="email" id="signupEmail" placeholder="Email Address">
+        <input type="tel" id="signupPhone" placeholder="Phone Number">
+        <div class="error-msg" id="signupError"></div>
+        <button class="primary-btn" onclick="handleSignup()">Send OTP & Register</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OTP SCREEN ===== -->
+  <div id="otpScreen" class="screen">
+    <h1>🔐 Verify OTP</h1>
+    <p class="subtitle">Enter the OTP sent to your email/phone</p>
+    <div class="auth-box">
+      <div class="otp-info" id="otpDisplay"></div>
+      <input type="text" id="otpInput" placeholder="Enter 4-digit OTP" maxlength="4">
+      <div class="error-msg" id="otpError"></div>
+      <button class="primary-btn" onclick="verifyOtp()">Verify & Continue</button>
+      <p class="link-text" onclick="goBackToAuth()">← Back</p>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD SCREEN ===== -->
+  <div id="dashboardScreen" class="screen">
+    <div class="topbar">
+      <div>
+        <h1 style="text-align:left;">📊 Dashboard</h1>
+        <span class="user-badge" id="welcomeMsg"></span>
+      </div>
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
+    </div>
+
+    <div class="form-section">
+      <h3 style="color:#4b3f72; margin-bottom:12px;">Add Your Subjects (all at once)</h3>
+      <div id="subjectRows"></div>
+      <button class="add-row-btn" onclick="addSubjectRow()">+ Add Another Subject</button>
+
+      <div class="form-row">
+        <input type="number" id="dailyHours" placeholder="Daily study hours (e.g. 4)" min="1" max="16">
+        <input type="number" id="numDays" placeholder="Plan for how many days (e.g. 7)" min="1" max="60">
+      </div>
+      <button class="primary-btn" style="margin-top:15px;" onclick="generateSchedule()">🎯 Generate AI Study Plan</button>
+    </div>
+
+    <div id="scheduleOutput"></div>
+  </div>
+
+</div>
+
+<script>
+  // ===== Simulated in-memory "database" (resets on page reload — connect a real backend for persistence) =====
+  let studentsDB = [];   // { name, email, phone }
+  let currentUser = null;
+  let pendingUser = null;   // holds user data while OTP is being verified
+  let pendingMode = null;   // 'login' or 'signup'
+  let generatedOtp = null;
+  let subjectRowCount = 0;
+
+  function switchTab(tab) {
+    document.getElementById('loginTabBtn').classList.toggle('active', tab === 'login');
+    document.getElementById('signupTabBtn').classList.toggle('active', tab === 'signup');
+    document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
+  }
+
+  function generateOtp() {
+    return Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit OTP
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  // ---------- SIGNUP ----------
+  function handleSignup() {
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+    const phone = document.getElementById('signupPhone').value.trim();
+    const errorBox = document.getElementById('signupError');
+
+    if (!name || !email || !phone) {
+      errorBox.textContent = 'Please fill all fields.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      errorBox.textContent = 'Enter a valid email address.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    if (!/^\d{10}$/.test(phone)) {
+      errorBox.textContent = 'Enter a valid 10-digit phone number.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    if (studentsDB.find(s => s.email === email)) {
+      errorBox.textContent = 'Email already registered. Please login instead.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    errorBox.style.display = 'none';
+
+    pendingUser = { name, email, phone };
+    pendingMode = 'signup';
+    sendOtpAndShowScreen(email, phone);
+  }
+
+  // ---------- LOGIN ----------
+  function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const phone = document.getElementById('loginPhone').value.trim();
+    const errorBox = document.getElementById('loginError');
+
+    const user = studentsDB.find(s => s.email === email && s.phone === phone);
+    if (!user) {
+      errorBox.textContent = 'No account found with this email & phone. Please sign up first.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    errorBox.style.display = 'none';
+
+    pendingUser = user;
+    pendingMode = 'login';
+    sendOtpAndShowScreen(email, phone);
+  }
+
+  // ---------- OTP ----------
+  function sendOtpAndShowScreen(email, phone) {
+    generatedOtp = generateOtp();
+    document.getElementById('otpDisplay').innerHTML =
+      `📩 OTP sent to <b>${email}</b> / <b>${phone}</b><br>
+       <small>(Demo mode — real app would send via SMS/Email API. Your OTP is: <b>${generatedOtp}</b>)</small>`;
+    document.getElementById('otpInput').value = '';
+    document.getElementById('otpError').style.display = 'none';
+    showScreen('otpScreen');
+  }
+
+  function verifyOtp() {
+    const entered = document.getElementById('otpInput').value.trim();
+    const errorBox = document.getElementById('otpError');
+
+    if (entered !== generatedOtp) {
+      errorBox.textContent = 'Incorrect OTP. Please try again.';
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    // OTP correct -> finalize signup/login
+    if (pendingMode === 'signup') {
+      studentsDB.push(pendingUser);
+    }
+    currentUser = pendingUser;
+    pendingUser = null;
+    goToDashboard();
+  }
+
+  function goBackToAuth() {
+    pendingUser = null;
+    pendingMode = null;
+    showScreen('authScreen');
+  }
+
+  // ---------- DASHBOARD ----------
+  function goToDashboard() {
+    document.getElementById('welcomeMsg').textContent =
+      `Welcome, ${currentUser.name} (${currentUser.email})`;
+    document.getElementById('subjectRows').innerHTML = '';
+    subjectRowCount = 0;
+    addSubjectRow();
+    addSubjectRow();
+    document.getElementById('scheduleOutput').innerHTML = '';
+    showScreen('dashboardScreen');
+  }
+
+  function handleLogout() {
+    currentUser = null;
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPhone').value = '';
+    document.getElementById('signupName').value = '';
+    document.getElementById('signupEmail').value = '';
+    document.getElementById('signupPhone').value = '';
+    switchTab('login');
+    showScreen('authScreen');
+  }
+
+  // ---------- BULK SUBJECT ROWS ----------
+  function addSubjectRow() {
+    subjectRowCount++;
+    const rowId = 'row_' + subjectRowCount;
+    const div = document.createElement('div');
+    div.className = 'subject-row';
+    div.id = rowId;
+    div.innerHTML = `
+      <input type="text" class="subj-name" placeholder="Subject name">
+      <select class="subj-difficulty">
+        <option value="1">Easy</option>
+        <option value="2" selected>Medium</option>
+        <option value="3">Hard</option>
+      </select>
+      <input type="date" class="subj-examdate">
+      <button class="remove-row-btn" onclick="removeSubjectRow('${rowId}')">✕</button>
+    `;
+    document.getElementById('subjectRows').appendChild(div);
+  }
+
+  function removeSubjectRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) row.remove();
+  }
+
+  // ---------- AI SCHEDULING LOGIC ----------
+  function calculatePriority(difficulty, examDate) {
+    const today = new Date();
+    const exam = new Date(examDate);
+    const daysLeft = Math.max(1, Math.ceil((exam - today) / (1000 * 60 * 60 * 24)));
+    const urgencyScore = 30 / daysLeft;
+    const difficultyScore = difficulty * 5;
+    return { priority: urgencyScore + difficultyScore, daysLeft };
+  }
+
+  function generateSchedule() {
+    const rows = document.querySelectorAll('.subject-row');
+    const dailyHours = parseFloat(document.getElementById('dailyHours').value);
+    const numDays = parseInt(document.getElementById('numDays').value);
+    const output = document.getElementById('scheduleOutput');
+
+    let subjects = [];
+    rows.forEach(row => {
+      const name = row.querySelector('.subj-name').value.trim();
+      const difficulty = parseInt(row.querySelector('.subj-difficulty').value);
+      const examDate = row.querySelector('.subj-examdate').value;
+      if (name && examDate) {
+        subjects.push({ name, difficulty, examDate });
+      }
+    });
+
+    if (subjects.length === 0) {
+      alert('Please fill in at least one subject with name and exam date.');
+      return;
+    }
+    if (!dailyHours || !numDays) {
+      alert('Please enter daily hours and number of days.');
+      return;
+    }
+
+    const scored = subjects.map(s => {
+      const { priority, daysLeft } = calculatePriority(s.difficulty, s.examDate);
+      return { ...s, priority, daysLeft };
+    });
+
+    const totalPriority = scored.reduce((sum, s) => sum + s.priority, 0);
+    const allocation = scored.map(s => ({
+      ...s,
+      hoursPerDay: Math.round((s.priority / totalPriority) * dailyHours * 10) / 10
+    }));
+
+    let html = '<h2 style="color:#4b3f72; margin-bottom:10px;">📅 Your Personalized Study Plan</h2>';
+    html += '<table><tr><th>Subject</th><th>Difficulty</th><th>Days Left</th><th>Priority</th><th>Daily Hours</th></tr>';
+    allocation.sort((a, b) => b.priority - a.priority).forEach(s => {
+      const diffLabel = ['', 'Easy', 'Medium', 'Hard'][s.difficulty];
+      let priorityClass = 'priority-low';
+      if (s.priority > 25) priorityClass = 'priority-high';
+      else if (s.priority > 15) priorityClass = 'priority-medium';
+      html += `<tr>
+        <td>${s.name}</td><td>${diffLabel}</td><td>${s.daysLeft} days</td>
+        <td class="${priorityClass}">${s.priority.toFixed(1)}</td><td>${s.hoursPerDay} hrs</td>
+      </tr>`;
+    });
+    html += '</table>';
+
+    for (let d = 1; d <= numDays; d++) {
+      const date = new Date();
+      date.setDate(date.getDate() + (d - 1));
+      html += `<div class="day-block"><h3>Day ${d} — ${date.toDateString()}</h3>`;
+      allocation.forEach(s => {
+        if (s.hoursPerDay > 0) {
+          html += `<div class="task"><span>${s.name}</span><span>${s.hoursPerDay} hrs</span></div>`;
+        }
+      });
+      html += '</div>';
+    }
+    output.innerHTML = html;
+  }
+</script>
+
+</body>
+</html>
